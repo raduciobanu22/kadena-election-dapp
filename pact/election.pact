@@ -1,7 +1,7 @@
 (define-keyset 'election-admin-keyset)
 
 (module election GOVERNANCE
-  "Simple voting module"
+  "Election demo module"
 
   (use coin [ details ])
 
@@ -61,7 +61,7 @@
   )
 
   (defun getVotes:integer (candidateId:string)
-    "Get the votes count by key"
+    "Get the votes count by candidateId"
     (at 'votes (read candidates candidateId ['votes]))
   )
 

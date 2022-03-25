@@ -1,0 +1,66 @@
+;; begin a transaction
+(begin-tx)
+;; set environment data to the admin-keyset with keys my-key and predicate function of keys-all
+(env-data {
+  'election-admin-keyset: { "keys": ["admin-key"], "pred": "keys-all" },
+  'alice-keyset: { "keys": ["alice-key"], "pred": "keys-all" },
+  'bob-keyset: { "keys": ["bob-key"], "pred": "keys-all" },
+  'upgrade: false
+})
+
+;; load fungible-v2 interface required by coin module
+(load "coin/fungible-v2.pact")
+;; load coin module
+(load "coin/coin-v3.pact")
+;; load election module
+(load "election.pact")
+;; commit the transaction
+(commit-tx)
+
+(begin-tx)
+;; create "alice" KDA account
+(coin.create-account "alice" (read-keyset "alice-keyset"))
+;; create "bob" KDA account
+(coin.create-account "bob" (read-keyset "bob-keyset"))
+(commit-tx)
+
+(begin-tx)
+;; import election module
+(use election)
+(env-sigs [{ "key": "alice-key", "caps": []}])
+(expect-failure "Can't vote for a non-existing candidate" (vote "alice" "5"))
+(commit-tx)
+
+(begin-tx)
+(use election)
+;; test if votes count for candidate "1" is initialized with 0
+(expect "votes for Candidate A initialized" (getVotes "1") 0)
+;; test if votes count for candidate "2" is initialized with 0
+(expect "votes for Candidate B initialized" (getVotes "2") 0)
+(commit-tx)
+
+(begin-tx)
+(use election)
+(env-sigs [{ "key": "alice-key", "caps": []}])
+;; test if votes count for candidate "1" is correctly increased by 1
+(let ((count (getVotes "1")))
+  (vote "alice" "1")
+  (expect "votes count is increased by 1" (getVotes "1") (+ count 1)))
+(expect "voted event"
+  [ { "name": "election.VOTED", "params": ["1"], "module-hash": (at 'hash (describe-module "election"))}]
+  (env-events true))
+
+(env-sigs [{ "key": "bob-key", "caps": []}])
+;; test if votes count for candidate "2" is correctly increased by 1
+(let ((count (getVotes "2")))
+  (vote "bob" "2")
+  (expect "votes count is increased by 1" (getVotes "2") (+ count 1)))
+(expect "voted event"
+  [ { "name": "election.VOTED",
+      "params": ["2"],
+      "module-hash": (at 'hash (describe-module "election"))
+    }
+  ]
+  (env-events true))
+(expect-failure "Double voting" (vote "bob" "5"))
+(commit-tx)

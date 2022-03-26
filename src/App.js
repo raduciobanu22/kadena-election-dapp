@@ -1,54 +1,64 @@
 import { useState, useEffect } from 'react';
+import { Container, Row, Col, Button, Modal, Form } from 'react-bootstrap';
+import { getVotes } from './election';
+import WalletModal from './WalletModal';
+
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
-import Pact from 'pact-lang-api';
-import { Container, Row, Col, Button } from 'react-bootstrap';
-
-// const NETWORK_ID = 'testnet04';
-// const CHAIN_ID = '1';
-const API_HOST = `http://localhost:8080`;
-
-const getVotes = (candidate) => {
-  const cmd = {
-    pactCode: `(simple-vote.getVotes "${candidate}")`
-  };
-  return Pact.fetch.local(cmd, API_HOST);
-}
-
-const submitVote = async () => {
-
-}
 
 function App() {
   const [votesA, setVotesA] = useState(0);
   const [votesB, setVotesB] = useState(0);
+  const [votesC, setVotesC] = useState(0);
+  const [voteFor, setVoteFor] = useState('');
+  const [modalVisibility, setModalVisibility] = useState(false);
+
+  const getAllVotes = () => {
+    getVotes('1').then(response => {
+      setVotesA(response.result.data)
+    });
+
+    getVotes('2').then(response => {
+      setVotesB(response.result.data)
+    });
+
+    getVotes('3').then(response => {
+      setVotesC(response.result.data)
+    });
+  }
 
   useEffect(() => {
-    getVotes('A').then(response => {
-      setVotesA(response.result.data)
-    })
-
-    getVotes('B').then(response => {
-      setVotesB(response.result.data)
-    })
+    getAllVotes();
   }, []);
 
   return (
     <div className="App mt-5">
       <Container>
         <h2>Election Demo</h2>
-        <Row>
+        <Row className="mt-5">
           <Col className="text-center">
             <h5>Candidate A</h5>
             <p>Votes: {votesA}</p>
-            <Button className="mt-2">Vote</Button>
+            <Button className="mt-2" onClick={() =>  { setVoteFor('1'); setModalVisibility(true)} }>Vote for A</Button>
           </Col>
           <Col className="text-center">
             <h5>Candidate B</h5>
             <p>Votes: {votesB}</p>
-            <Button className="mt-2">Vote</Button>
+            <Button className="mt-2" onClick={() => { setVoteFor('2'); setModalVisibility(true)} }>Vote for B</Button>
+          </Col>
+          <Col className="text-center">
+            <h5>Candidate C</h5>
+            <p>Votes: {votesC}</p>
+            <Button className="mt-2" onClick={() => { setVoteFor('3'); setModalVisibility(true)} }>Vote for C</Button>
           </Col>
         </Row>
+
+        <WalletModal
+          show={modalVisibility}
+          hideModal={() => setModalVisibility(false)}
+          candidate={voteFor}
+          updateVotes={() => getAllVotes()}
+        />
       </Container>
     </div>
   );

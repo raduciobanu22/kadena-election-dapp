@@ -41,7 +41,7 @@
 
 (begin-tx)
 (use election)
-(env-sigs [{ "key": "alice-key", "caps": []}])
+(env-sigs [{ "key": "alice-key", "caps": [(coin.GAS), (election.ACCOUNT-OWNER "alice")]}])
 ;; test if votes count for candidate "1" is correctly increased by 1
 (let ((count (getVotes "1")))
   (vote "alice" "1")
@@ -62,5 +62,5 @@
     }
   ]
   (env-events true))
-(expect-failure "Double voting" (vote "bob" "5"))
+(expect-failure "Double voting not allowed" (vote "bob" "1"))
 (commit-tx)

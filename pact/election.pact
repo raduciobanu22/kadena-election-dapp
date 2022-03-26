@@ -1,5 +1,7 @@
 (define-keyset 'election-admin-keyset)
 
+(namespace "free")
+
 (module election GOVERNANCE
   "Election demo module"
 
@@ -15,7 +17,7 @@
 
   (defschema votes-schema
     "Votes table schema"
-    candidate:string
+    cid:string
   )
 
   ; ----------------------------------------------------------------------
@@ -32,6 +34,11 @@
     "Only admin can update this module"
     (enforce-keyset 'election-admin-keyset))
 
+  (defcap ACCOUNT-OWNER (account:string)
+    "Make sure the requester owns the KDA account"
+    (enforce-guard (at 'guard (coin.details account)))
+  )
+
   (defcap VOTED (candidateId:string)
     @managed
     true)
@@ -39,35 +46,48 @@
   ; ----------------------------------------------------------------------
   ; Functionality
 
-  (defun vote (account:string candidateId:string)
-    "Submit a new vote"
-    ; Make sure the requester owns the KDA account
-    (enforce-guard (at 'guard (coin.details account)))
-
-    ; Do not allow multiple votes from the same account
-    (let ((accounts (keys votes)))
-      (enforce (= false (contains account accounts)) "Multiple voting not allowed"))
-
-    ; Make sure the vote is for an existing candidate
-    (let ((candidatesIds (keys candidates)))
-      (enforce (contains candidateId candidatesIds) "Candidate doesn't exist"))
+  (defun vote-protected (account:string candidateId:string)
+    (require-capability (ACCOUNT-OWNER account))
 
     (with-read candidates candidateId { "votes" := votesCount }
       (update candidates candidateId { "votes": (+ votesCount 1) })
-      (insert votes account { "candidate": candidateId })
+      (insert votes account { "cid": candidateId })
       (emit-event (VOTED candidateId))
     )
-    (format "Voted for candidate {}!" [candidateId])
   )
 
-  (defun getVotes:integer (candidateId:string)
-    "Get the votes count by candidateId"
-    (at 'votes (read candidates candidateId ['votes]))
+  (defun user-voted:bool (account:string)
+    (with-default-read votes account
+      { "cid": "" }
+      { "cid":= cid }
+      (> (length cid) 0))
   )
 
-  (defun getCandidates ()
-    "Get all candidates"
-    (map (getCandidate) (keys candidates))
+  (defun candidate-exists:bool (cid:string)
+    (with-default-read candidates cid
+      { "name": "" }
+      { "name" := name }
+      (> (length name) 0))
+  )
+
+  (defun vote (account:string cid:string)
+    "Submit a new vote"
+
+    (let ((doubleVote (user-voted account)))
+      (enforce (= doubleVote false) "Multiple voting not allowed"))
+
+    (let ((exists (candidate-exists cid)))
+      (enforce (= exists true) "Candidate doesn't exist"))
+
+    (with-capability (ACCOUNT-OWNER account)
+      (vote-protected account cid))
+
+    (format "Voted for candidate {}!" [cid])
+  )
+
+  (defun getVotes:integer (cid:string)
+    "Get the votes count by cid"
+    (at 'votes (read candidates cid ['votes]))
   )
 
   (defun getCandidate (id:string)

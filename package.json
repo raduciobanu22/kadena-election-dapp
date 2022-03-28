@@ -64,7 +64,8 @@
   "scripts": {
     "start": "node scripts/start.js",
     "build": "node scripts/build.js",
-    "test": "node scripts/test.js"
+    "test": "node scripts/test.js",
+    "start:pact": "rm -Rf log/ && mkdir log && sh pact-server-bootstrap.sh"
   },
   "eslintConfig": {
     "extends": [

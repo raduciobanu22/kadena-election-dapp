@@ -9,9 +9,9 @@
 })
 
 ;; load fungible-v2 interface required by coin module
-(load "coin/fungible-v2.pact")
+(load "root/fungible-v2.pact")
 ;; load coin module
-(load "coin/coin-v3.pact")
+(load "root/coin-v3.pact")
 ;; load election module
 (load "election.pact")
 ;; commit the transaction

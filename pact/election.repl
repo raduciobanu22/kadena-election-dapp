@@ -5,6 +5,7 @@
   'election-admin-keyset: { "keys": ["admin-key"], "pred": "keys-all" },
   'alice-keyset: { "keys": ["alice-key"], "pred": "keys-all" },
   'bob-keyset: { "keys": ["bob-key"], "pred": "keys-all" },
+  'kate-keyset: { "keys": ["kate-key"], "pred": "keys-all" },
   'upgrade: false
 })
 
@@ -22,39 +23,51 @@
 (coin.create-account "alice" (read-keyset "alice-keyset"))
 ;; create "bob" KDA account
 (coin.create-account "bob" (read-keyset "bob-keyset"))
+;; create "kate" KDA account
+(coin.create-account "kate" (read-keyset "kate-keyset"))
+
+(env-sigs [{ "key": "admin-key", "caps": [(election.GOVERNANCE)]} ])
+(election.insert-candidates [{ "key": "1", "name": "Candidate A" } { "key": "2", "name": "Candidate B" } { "key": "3", "name": "Candidate B" }])
 (commit-tx)
 
 (begin-tx)
 ;; import election module
 (use election)
-(env-sigs [{ "key": "alice-key", "caps": []}])
-(expect-failure "Can't vote for a non-existing candidate" (vote "alice" "5"))
+(env-sigs [{ "key": "kate-key", "caps": []} ])
+(expect-failure "Can't vote for a non-existing candidate" (vote "kate" "4"))
+(expect-failure "Missing admin capability" (insert-candidate "4" { "name": "Candidate D", "votes": 0}))
+
+(env-sigs [{ "key": "admin-key", "caps": [(election.GOVERNANCE)]} ])
+(insert-candidate { "key": "4", "name": "Candidate D", "votes": 0 })
+
+(env-sigs [{ "key": "kate-key", "caps": []} ])
+(expect "Voted for a newly inserted candidate" (vote "kate" "4") "Voted for candidate 4!")
 (commit-tx)
 
 (begin-tx)
 (use election)
 ;; test if votes count for candidate "1" is initialized with 0
-(expect "votes for Candidate A initialized" (getVotes "1") 0)
+(expect "votes for Candidate A initialized" (get-votes "1") 0)
 ;; test if votes count for candidate "2" is initialized with 0
-(expect "votes for Candidate B initialized" (getVotes "2") 0)
+(expect "votes for Candidate B initialized" (get-votes "2") 0)
 (commit-tx)
 
 (begin-tx)
 (use election)
 (env-sigs [{ "key": "alice-key", "caps": [(coin.GAS), (election.ACCOUNT-OWNER "alice")]}])
 ;; test if votes count for candidate "1" is correctly increased by 1
-(let ((count (getVotes "1")))
+(let ((count (get-votes "1")))
   (vote "alice" "1")
-  (expect "votes count is increased by 1" (getVotes "1") (+ count 1)))
+  (expect "votes count is increased by 1" (get-votes "1") (+ count 1)))
 (expect "voted event"
   [ { "name": "election.VOTED", "params": ["1"], "module-hash": (at 'hash (describe-module "election"))}]
   (env-events true))
 
 (env-sigs [{ "key": "bob-key", "caps": []}])
 ;; test if votes count for candidate "2" is correctly increased by 1
-(let ((count (getVotes "2")))
+(let ((count (get-votes "2")))
   (vote "bob" "2")
-  (expect "votes count is increased by 1" (getVotes "2") (+ count 1)))
+  (expect "votes count is increased by 1" (get-votes "2") (+ count 1)))
 (expect "voted event"
   [ { "name": "election.VOTED",
       "params": ["2"],
@@ -63,4 +76,5 @@
   ]
   (env-events true))
 (expect-failure "Double voting not allowed" (vote "bob" "1"))
+
 (commit-tx)

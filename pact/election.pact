@@ -1,6 +1,6 @@
 (define-keyset 'election-admin-keyset)
 
-(namespace "free")
+;(namespace "free")
 
 (module election GOVERNANCE
   "Election demo module"
@@ -73,8 +73,8 @@
   (defun vote (account:string cid:string)
     "Submit a new vote"
 
-    (let ((doubleVote (user-voted account)))
-      (enforce (= doubleVote false) "Multiple voting not allowed"))
+    (let ((double-vote (user-voted account)))
+      (enforce (= double-vote false) "Multiple voting not allowed"))
 
     (let ((exists (candidate-exists cid)))
       (enforce (= exists true) "Candidate doesn't exist"))
@@ -85,21 +85,25 @@
     (format "Voted for candidate {}!" [cid])
   )
 
-  (defun getVotes:integer (cid:string)
+  (defun get-votes:integer (cid:string)
     "Get the votes count by cid"
     (at 'votes (read candidates cid ['votes]))
   )
 
-  (defun getCandidate (id:string)
+  (defun get-candidate (id:string)
     "Get candidate by id"
     (read candidates id ['name 'votes])
   )
 
-  (defun init ()
-    "Initialize the rows in votes table"
-    (insert candidates "1" { "name": "Candidate A", "votes": 0 })
-    (insert candidates "2" { "name": "Candidate B", "votes": 0 })
-    (insert candidates "3" { "name": "Candidate C", "votes": 0 })
+  (defun insert-candidate (candidate)
+    "Insert a new candidate, admin operation"
+    (with-capability (GOVERNANCE)
+      (let ((name (at 'name candidate)))
+      (insert candidates (at 'key candidate) { "name": (at 'name candidate), "votes": 0 })))
+  )
+
+  (defun insert-candidates (candidates:list)
+    (map (insert-candidate) candidates)
   )
 )
 
@@ -108,6 +112,5 @@
   [
     (create-table candidates)
     (create-table votes)
-    (init)
   ]
 )
